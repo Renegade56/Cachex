@@ -39,6 +39,7 @@ class PlayerWrapper:
         )
         self.Player = _load_player_class(player_pkg, player_cls)
 
+    # constructs the Player instance (calling `.__init__()`)
     def init(self, colour, n):
         self.colour = colour
         self.name += f" ({colour})"

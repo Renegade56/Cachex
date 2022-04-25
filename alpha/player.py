@@ -9,7 +9,8 @@ class Player:
         play as Red, or the string "blue" if your player will play
         as Blue.
         """
-        # put your code here
+        
+        
 
     def action(self):
         """
@@ -17,6 +18,9 @@ class Player:
         of the game, select an action to play.
         """
         # put your code here
+
+        return ("PLACE", 3, 2)
+
     
     def turn(self, player, action):
         """
@@ -31,3 +35,4 @@ class Player:
         """
         # put your code here
 
+        print("-------------THIS IS THE TURN ACTION-------------")
