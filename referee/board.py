@@ -155,5 +155,7 @@ class Board:
         """
         Returns (within-bounds) neighbouring coordinates for given coord.
         """
+
         return [_ADD(coord, step) for step in _HEX_STEPS \
             if self.inside_bounds(_ADD(coord, step))]
+            

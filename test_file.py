@@ -1,8 +1,11 @@
-# for elem in enumerate(["red", "blue"], 1):
-#     print(elem)
+# from collections import Counter
+import numpy
 
-from collections import Counter
+# a = [1, 1, 1, 3, 3, 5, 6, 8, 9]
 
-a = [1, 1, 1, 3, 3, 5, 6, 8, 9]
+# print(Counter(a).items())
 
-print(Counter(a).items())
+start_coord = (1,2)
+
+a = numpy.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+print(a[start_coord])
