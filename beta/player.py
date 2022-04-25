@@ -1,7 +1,14 @@
 from referee.board import Board
 from collections import Counter
+import numpy
 
 class Player:
+
+    PLAYER_REPRESENTATIONS = {
+        "red": 1,
+        "blue": 2
+    }
+
     def __init__(self, player, n):
         """
         Called once at the beginning of a game to initialise this player.
@@ -17,10 +24,10 @@ class Player:
         self.board_size = n # 5
         self.turn_number = 1 # Start from turn 1
         self.last_placement = tuple()
-        self.history = Counter({self.board.tobytes(): 1})
-
+        
         # Represent board as 2d array
-        self.board = [ [0] * n for i in range(n) ]
+        self.board = numpy.zeros((n, n), dtype=int)
+        self.history = Counter({self.board.tobytes(): 1})
         
         
 
@@ -84,6 +91,8 @@ class Player:
                 return True
 
             return False
+        
+        # 
 
 
     def turn(self, player, action):
@@ -100,14 +109,14 @@ class Player:
         # put your code here
 
         if action[0].upper() == 'PLACE': # 'PLACE'
-            self.board[action[1]][action[2]] = player[0]
+            self.board[action[1]][action[2]] = Player.PLAYER_REPRESENTATIONS[player]
             
         else: # 'STEAL'
             is_looping = True
             for i in range(self.board_size):
                 for j in range(self.board_size):
                     if self.board[i][j] != 0:
-                        self.board[j][i] = player[0]
+                        self.board[j][i] = Player.PLAYER_REPRESENTATIONS[player]
                         self.board[i][j] = 0
                         is_looping = False
                 
@@ -117,7 +126,7 @@ class Player:
         if action[0].upper() != "STEAL":
             self.last_placement = (player, action[1], action[2])
 
-        print(self.board) # CHECK ----------------------------------------
+        # print(self.board) # CHECK ----------------------------------------
         self.turn_number += 1 # Increment turn count
         self.history[self.board.tobytes()] += 1 # Add board state to history
 

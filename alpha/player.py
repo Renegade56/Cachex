@@ -1,5 +1,14 @@
+import numpy
+from referee.board import Board
+from collections import Counter
 
 class Player:
+
+    PLAYER_REPRESENTATIONS = {
+        "red": 1,
+        "blue": 2
+    }
+
     def __init__(self, player, n):
         """
         Called once at the beginning of a game to initialise this player.
@@ -17,7 +26,8 @@ class Player:
         self.last_placement = tuple()
 
         # Represent board as 2d array
-        self.board = [ [0] * n for i in range(n) ]
+        self.board = numpy.zeros((n, n), dtype=int)
+        self.history = Counter({self.board.tobytes(): 1})
         
         
     def action(self):
@@ -27,25 +37,10 @@ class Player:
         """
         # put your code here
 
-        if self.colour == 'red' and self.turn_number == 1:
-            return ('PLACE', 3, 2)
-            # return ('PLACE', (self.board_size // 2) + 1, (self.board_size // 2))
-        
-        if self.colour == 'blue':
+        row = int(input("Enter row coordinate: "))
+        column = int(input("Enter column coordinate: "))
 
-            # Decide whether to steal
-            if self.turn_number == 2:
-                
-                # Hexes not to steal
-                safe_hexes = []
-                for i in range(self.board_size):
-                    for j in range(self.board_size):
-                        if i == 0 or i == self.board_size - 1 or j == 0 or j == self.board_size - 1:
-                            safe_hexes.append((i, j))
-
-                if self.last_placement not in safe_hexes:
-                    return ('STEAL', )
-
+        return ('PLACE', row, column)
 
 
     def turn(self, player, action):
@@ -60,16 +55,16 @@ class Player:
         above. However, the referee has validated it at this point.
         """
         # put your code here
-        
+
         if action[0].upper() == 'PLACE': # 'PLACE'
-            self.board[action[1]][action[2]] = player[0]
-        
+            self.board[action[1]][action[2]] = Player.PLAYER_REPRESENTATIONS[player]
+            
         else: # 'STEAL'
             is_looping = True
             for i in range(self.board_size):
                 for j in range(self.board_size):
                     if self.board[i][j] != 0:
-                        self.board[j][i] = player[0]
+                        self.board[j][i] = Player.PLAYER_REPRESENTATIONS[player]
                         self.board[i][j] = 0
                         is_looping = False
                 
@@ -77,7 +72,12 @@ class Player:
                     break
         
         if action[0].upper() != "STEAL":
-            self.last_placement = (action[1], action[2])
+            self.last_placement = (player, action[1], action[2])
 
-        print(self.board) # CHECK ----------------------------------------
-        self.turn_number += 1
+        # print(self.board) # CHECK ----------------------------------------
+        self.turn_number += 1 # Increment turn count
+        self.history[self.board.tobytes()] += 1 # Add board state to history
+
+
+
+        
