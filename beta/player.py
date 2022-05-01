@@ -39,72 +39,8 @@ class Player:
         of the game, select an action to play.
         """
         
-        def Min(): # Human player
-            pv = 1.0e40 # positive infinity
-            qx = None
-            qy = None
-
-            result = game_end()
-            print("*************** this is min: ", result) # TEST ------------------------------------------------------------
-
-            if result == 'red':
-                return (-1, 0, 0)
-            elif result == 'blue':
-                return (1, 0, 0)
-            elif result == 'draw':
-                return (0, 0, 0)
-
-            for i in range(0, self.board_size):
-                for j in range(0, self.board_size):
-                    if self.board[i][j] == 0:
-                        # AI makes a move and calls Min()
-                        self.board[i][j] = Player.PLAYER_REPRESENTATIONS['red']
-                        (m, max_i, max_j) = Max()
-
-                        if m < pv:
-                            pv = m
-                            qx = i
-                            qy = j
-                        
-                        # Set field back to empty
-                        self.board[i][j] = 0
-            
-            return (pv, qx, qy)
-        
-        def Max(): # AI player
-            nv = -1.0e40 # negative infinity
-            px = None
-            py = None
-
-            result = game_end()
-            print("this is min: ", result) # TEST ------------------------------------------------------------
-
-            if result == 'red':
-                return (-1, 0, 0)
-            elif result == 'blue':
-                return (1, 0, 0)
-            elif result == 'draw':
-                return (0, 0, 0)
-
-            for i in range(0, self.board_size):
-                for j in range(0, self.board_size):
-                    if self.board[i][j] == 0:
-                        # AI makes a move and calls Min()
-                        self.board[i][j] = Player.PLAYER_REPRESENTATIONS['blue']
-                        (m, min_i, min_j) = Min()
-
-                        if m > nv:
-                            nv = m
-                            px = i
-                            py = j
-                        
-                        # Set field back to empty
-                        self.board[i][j] = 0
-            
-            return (nv, px, py)
-        
         # From board.py
-        def connected_coords(self, start_coord):
+        def connected_coords(start_coord):
             """
             Find connected coordinates from start_coord. This uses the token 
             value of the start_coord cell to determine which other cells are
@@ -112,6 +48,8 @@ class Player:
             """
             # Get search token type
             token_type = self.board[start_coord]
+            # print("board: ", self.board) ------------DELETE-------------
+            # print(f"Token type: {token_type}")  ------------DELETE-------------
 
             # Use bfs from start coordinate
             reachable = set()
@@ -152,8 +90,11 @@ class Player:
 
             return neighbours_list2
 
-        def game_end():
+        def game_end(lp, lx, ly): # game_end(last_player='blue', last_x=i, last_y=j)  
             
+            print("last player: ", lp)
+            print("x: ", lx, "y: ", ly)
+
             PLAYER_AXIS = {
                 "red": 0, # Red aims to form path in r/0 axis
                 "blue": 1 # Blue aims to form path in q/1 axis
@@ -164,13 +105,16 @@ class Player:
 
             # Continuous path formed by either player
             #if self.turn_number >= (self.board_size * 2) - 1:  
-            reachable = connected_coords(self, (self.last_placement[1], self.last_placement[2]))
-            print ("************************(reachable): ", reachable)
-            axis_vals = [coord[PLAYER_AXIS[self.last_placement[0]]] for coord in reachable]
-            print ("************************(axis_vals: ", axis_vals)
+            reachable = connected_coords((lx, ly))
+            print (f"************************(reachable) from {lx}, {ly}: {reachable}")
+            
+            axis_vals = [coord[PLAYER_AXIS[lp]] for coord in reachable]
+            print(f"axis vals: {axis_vals}")
+            print("------------------------------------------------")
             if min(axis_vals) == 0 and max(axis_vals) == self.board_size - 1:
-                print ("************************(self.last_placement): ", self.last_placement[0])
-                return self.last_placement[0]
+                print("HYPOTHETICAL WINNER: ", lp)
+                print("------------------------------------------------")
+                return lp
 
             # Draw due to repetition
             if self.history[self.board.tobytes()] >= MAX_REPEAT_STATES:
@@ -185,6 +129,65 @@ class Player:
         # if self.colour == 'red' and self.turn_number == 1:
         #     return ('PLACE', 3, 2)
         #     # return ('PLACE', (self.board_size // 2) + 1, (self.board_size // 2))
+
+        def AIMove():
+            bestScore = -1.0e40
+            bestMove = 0
+
+            for i in range(0, self.board_size):
+                for j in range(0, self.board_size):
+                    if self.board[i][j] == 0:
+                        self.board[i][j] = Player.PLAYER_REPRESENTATIONS['blue']
+                        score = minimax('blue', i, j, False)
+                        self.board[i][j] = 0
+                        if (score > bestScore):
+                            bestScore = score      
+                            bestMove = (i, j)
+
+            return ('PLACE', bestMove[0], bestMove[1])
+        
+        def minimax(last_player, last_x, last_y, isMaxPlayer):
+            nv = -1.0e40 # negative infinity
+            pv = 1.0e40 # positive infinity
+            result = game_end(last_player, last_x, last_y)
+            # print("this is max: ", result) # TEST ------------------------------------------------------------
+            
+            # If end of game   
+            if result == 'red':
+                return -1
+            elif result == 'blue':
+                return 1
+            elif result == 'draw':
+                return 0
+
+            if isMaxPlayer:
+
+                bestScore = nv
+                for i in range(0, self.board_size):
+                    for j in range(0, self.board_size):
+                        if self.board[i][j] == 0:
+                            self.board[i][j] = Player.PLAYER_REPRESENTATIONS['blue']
+                            score = minimax('blue', i, j, False)
+                            self.board[i][j] = 0
+                            if (score > bestScore):
+                                bestScore = score                
+            
+                return bestScore
+
+            else:
+                
+                bestScore = pv
+                for i in range(0, self.board_size):
+                    for j in range(0, self.board_size):
+                        if self.board[i][j] == 0:
+                            self.board[i][j] = Player.PLAYER_REPRESENTATIONS['red']
+                            score = minimax('red', i, j, True)
+                            self.board[i][j] = 0
+                            # print('score: ', score, "bestscore: ", bestScore)
+                            if (score < bestScore):
+                                bestScore = score                
+            
+                return bestScore
         
         if self.colour == 'blue':
 
@@ -204,34 +207,12 @@ class Player:
                 
                 else:
                     # AI's turn
-                    (m, px, py) = Max()
-                    print ("************************(m, px, py): ", m, px, py)
-                    return ('PLACE', px, py)
+                    return AIMove()
             
             # ONLY PLACE ACTIONS FROM TURN 3 ONWARDS
             else:
                 # AI's turn
-                (m, px, py) = Max()
-                print ("************************(m, px, py): ", m, px, py)
-                return ('PLACE', px, py)
-        
-        # def minimax(node, depth, isMaxPlayer):
-        #     nv = -1.0e40 # negative infinity
-        #     pv = 1.0e40 # positive infinity
-
-        #     if depth == 0 or game_end(node):
-        #         return heuristic value of node
-        #     if isMaxPlayer:
-        #         value = nv
-        #         for each child of node:
-        #             value = max(value, minimax(child, depth - 1, False))
-        #         return value
-
-        #     else:
-        #         value = pv
-        #         for each child of node:
-        #             value = min(value, minimax(child, depth - 1, True))
-        #         return value 
+                return AIMove()
 
 
     def turn(self, player, action):
