@@ -2,6 +2,7 @@ from pydoc import doc
 from collections import Counter
 import numpy
 from queue import Queue
+import time
 
 class Player:
 
@@ -92,8 +93,8 @@ class Player:
 
         def game_end(lp, lx, ly): # game_end(last_player='blue', last_x=i, last_y=j)  
             
-            print("last player: ", lp)
-            print("x: ", lx, "y: ", ly)
+            print("last player: ", lp) #--------------------TEST-----------------------
+            print("x: ", lx, "y: ", ly) #--------------------TEST-----------------------
 
             PLAYER_AXIS = {
                 "red": 0, # Red aims to form path in r/0 axis
@@ -106,14 +107,20 @@ class Player:
             # Continuous path formed by either player
             #if self.turn_number >= (self.board_size * 2) - 1:  
             reachable = connected_coords((lx, ly))
-            print (f"************************(reachable) from {lx}, {ly}: {reachable}")
+            print (f"***(reachable) from {lx}, {ly}: {reachable}") #--------------------TEST-----------------------
             
             axis_vals = [coord[PLAYER_AXIS[lp]] for coord in reachable]
-            print(f"axis vals: {axis_vals}")
-            print("------------------------------------------------")
+            print(f"axis vals: {axis_vals}") #--------------------TEST-----------------------
+             
+            print(f"board:\n {self.board[::-1]}") #--------------------TEST-----------------------
+            print("\n------------------------------------------------\n") #--------------------TEST-----------------------
+            
+
+            # time.sleep(0.5)
+
             if min(axis_vals) == 0 and max(axis_vals) == self.board_size - 1:
-                print("HYPOTHETICAL WINNER: ", lp)
-                print("------------------------------------------------")
+                print("HYPOTHETICAL WINNER: ", lp) #--------------------TEST-----------------------
+                print("\n------------------------------------------------\n") #--------------------TEST-----------------------
                 return lp
 
             # Draw due to repetition
@@ -134,23 +141,34 @@ class Player:
             bestScore = -1.0e40
             bestMove = 0
 
+            scoreslol = []
+
             for i in range(0, self.board_size):
                 for j in range(0, self.board_size):
                     if self.board[i][j] == 0:
                         self.board[i][j] = Player.PLAYER_REPRESENTATIONS['blue']
-                        score = minimax('blue', i, j, False)
+                        score = alphaBetaMinimax('blue', i, j, False, -1.0e40, 1.0e40)
+                        scoreslol.append((score, i, j)) # ---------TEST------------
                         self.board[i][j] = 0
                         if (score > bestScore):
                             bestScore = score      
                             bestMove = (i, j)
 
+            
+            for elem in scoreslol: # ---------TEST------------
+                print(f"for ({elem[1]}, {elem[2]}), score = {elem[0]}") 
+
             return ('PLACE', bestMove[0], bestMove[1])
         
-        def minimax(last_player, last_x, last_y, isMaxPlayer):
+        def alphaBetaMinimax(last_player, last_x, last_y, isMaxPlayer, alpha, beta):
             nv = -1.0e40 # negative infinity
             pv = 1.0e40 # positive infinity
+
+            alpha = alpha
+            beta = beta
+
+            # EVALUATION FUNCTION
             result = game_end(last_player, last_x, last_y)
-            # print("this is max: ", result) # TEST ------------------------------------------------------------
             
             # If end of game   
             if result == 'red':
@@ -167,10 +185,17 @@ class Player:
                     for j in range(0, self.board_size):
                         if self.board[i][j] == 0:
                             self.board[i][j] = Player.PLAYER_REPRESENTATIONS['blue']
-                            score = minimax('blue', i, j, False)
-                            self.board[i][j] = 0
+                            score = alphaBetaMinimax('blue', i, j, False, alpha, beta)
+
                             if (score > bestScore):
-                                bestScore = score                
+                                bestScore = score
+
+                            # Alpha-beta pruning
+                            alpha = max(alpha, bestScore)
+                            if beta <= alpha:
+                                break      
+
+                            self.board[i][j] = 0
             
                 return bestScore
 
@@ -181,14 +206,23 @@ class Player:
                     for j in range(0, self.board_size):
                         if self.board[i][j] == 0:
                             self.board[i][j] = Player.PLAYER_REPRESENTATIONS['red']
-                            score = minimax('red', i, j, True)
+                            score = alphaBetaMinimax('red', i, j, True, alpha, beta)
+
+                            if (score < bestScore):
+                                bestScore = score
+
+                            # Alpha-beta pruning
+                            beta = min(beta, bestScore)
+                            if beta <= alpha:
+                                break
+
                             self.board[i][j] = 0
                             # print('score: ', score, "bestscore: ", bestScore)
-                            if (score < bestScore):
-                                bestScore = score                
+                                         
             
                 return bestScore
         
+        # Main code
         if self.colour == 'blue':
 
             # Decide whether to steal
