@@ -3,6 +3,7 @@ from collections import Counter
 import numpy
 from queue import Queue
 import time
+import random
 
 class Player:
 
@@ -26,6 +27,7 @@ class Player:
         self.board_size = n # 5
         self.turn_number = 1 # Start from turn 1
         self.last_placement = tuple()
+        self.iterations = 0
         
         # Represent board as 2d array
         self.board = numpy.zeros((n, n), dtype=int)
@@ -93,8 +95,8 @@ class Player:
 
         def game_end(lp, lx, ly): # game_end(last_player='blue', last_x=i, last_y=j)  
             
-            print("last player: ", lp) #--------------------TEST-----------------------
-            print("x: ", lx, "y: ", ly) #--------------------TEST-----------------------
+            # print("last player: ", lp) #--------------------TEST-----------------------
+            # print("x: ", lx, "y: ", ly) #--------------------TEST-----------------------
 
             PLAYER_AXIS = {
                 "red": 0, # Red aims to form path in r/0 axis
@@ -107,20 +109,21 @@ class Player:
             # Continuous path formed by either player
             #if self.turn_number >= (self.board_size * 2) - 1:  
             reachable = connected_coords((lx, ly))
-            print (f"***(reachable) from {lx}, {ly}: {reachable}") #--------------------TEST-----------------------
+            # print (f"***(reachable) from {lx}, {ly}: {reachable}") #--------------------TEST-----------------------
             
             axis_vals = [coord[PLAYER_AXIS[lp]] for coord in reachable]
-            print(f"axis vals: {axis_vals}") #--------------------TEST-----------------------
+            # print(f"axis vals: {axis_vals}") #--------------------TEST-----------------------
              
-            print(f"board:\n {self.board[::-1]}") #--------------------TEST-----------------------
-            print("\n------------------------------------------------\n") #--------------------TEST-----------------------
+            # print(f"board:\n {self.board[::-1]}") #--------------------TEST-----------------------
+            # print("\n------------------------------------------------\n") #--------------------TEST-----------------------
+            
             
 
-            # time.sleep(0.5)
+            # time.sleep(0.2271)
 
             if min(axis_vals) == 0 and max(axis_vals) == self.board_size - 1:
-                print("HYPOTHETICAL WINNER: ", lp) #--------------------TEST-----------------------
-                print("\n------------------------------------------------\n") #--------------------TEST-----------------------
+                # print("HYPOTHETICAL WINNER: ", lp) #--------------------TEST-----------------------
+                # print("\n------------------------------------------------\n") #--------------------TEST-----------------------
                 return lp
 
             # Draw due to repetition
@@ -140,32 +143,60 @@ class Player:
         def AIMove():
             bestScore = -1.0e40
             bestMove = 0
+            depth = 0
+
+            alpha = -1.0e40
+            beta = 1.0e40
 
             scoreslol = []
 
+            breakOutOfNestedLoop = False
             for i in range(0, self.board_size):
                 for j in range(0, self.board_size):
                     if self.board[i][j] == 0:
                         self.board[i][j] = Player.PLAYER_REPRESENTATIONS['blue']
-                        score = alphaBetaMinimax('blue', i, j, False, -1.0e40, 1.0e40)
+                        score = alphaBetaMinimax(depth, 'blue', i, j, False, alpha, beta)
                         scoreslol.append((score, i, j)) # ---------TEST------------
                         self.board[i][j] = 0
                         if (score > bestScore):
                             bestScore = score      
                             bestMove = (i, j)
 
+                        print(f"iterations: {self.iterations}")
+
+                        # Alpha-beta pruning
+                        alpha = max(alpha, bestScore)
+
+                        if beta <= alpha:
+                            
+                            # print("*********** PRUNED ********** inside maximising") # -------------- TEST ---------------
+                            breakOutOfNestedLoop = True
+                            break
+                
+                if breakOutOfNestedLoop:
+                        break
             
-            for elem in scoreslol: # ---------TEST------------
-                print(f"for ({elem[1]}, {elem[2]}), score = {elem[0]}") 
+            self.iterations = 0
+
+            # for elem in scoreslol: # ---------TEST------------
+            #     print(f"for ({elem[1]}, {elem[2]}), score = {elem[0]}") 
 
             return ('PLACE', bestMove[0], bestMove[1])
         
-        def alphaBetaMinimax(last_player, last_x, last_y, isMaxPlayer, alpha, beta):
+        def alphaBetaMinimax(depth, last_player, last_x, last_y, isMaxPlayer, alpha, beta):
+
+            self.iterations += 1
+            
             nv = -1.0e40 # negative infinity
             pv = 1.0e40 # positive infinity
 
             alpha = alpha
             beta = beta
+
+            # print(f"current depth: {depth}") # ---------TEST------------
+
+            if depth == 7:
+                return random.choice([-1, 1, 0])
 
             # EVALUATION FUNCTION
             result = game_end(last_player, last_x, last_y)
@@ -181,43 +212,79 @@ class Player:
             if isMaxPlayer:
 
                 bestScore = nv
+
+                breakOutOfNestedLoop = False
                 for i in range(0, self.board_size):
                     for j in range(0, self.board_size):
                         if self.board[i][j] == 0:
                             self.board[i][j] = Player.PLAYER_REPRESENTATIONS['blue']
-                            score = alphaBetaMinimax('blue', i, j, False, alpha, beta)
+                            score = alphaBetaMinimax(depth + 1, 'blue', i, j, False, alpha, beta)
+
+                            # print(f"score: {score}") # -------------- TEST ---------------
 
                             if (score > bestScore):
                                 bestScore = score
 
+                            self.board[i][j] = 0
+
+                            # print(f"best score: {bestScore}") # -------------- TEST ---------------
+                            
+                            # print(f'alpha before: {alpha}')
+                            # print(f'beta before: {beta}\n')
+
                             # Alpha-beta pruning
                             alpha = max(alpha, bestScore)
-                            if beta <= alpha:
-                                break      
 
-                            self.board[i][j] = 0
+                            # print(f'alpha after: {alpha}')
+                            # print(f'beta after: {beta}\n')
+
+                            if beta <= alpha:
+                                # print("*********** PRUNED ********** inside maximising") # -------------- TEST ---------------
+                                breakOutOfNestedLoop = True
+                                break
+
+                            
+
+                    if breakOutOfNestedLoop:
+                        break
             
                 return bestScore
 
             else:
                 
                 bestScore = pv
+                
+                breakOutOfNestedLoop = False
                 for i in range(0, self.board_size):
                     for j in range(0, self.board_size):
                         if self.board[i][j] == 0:
                             self.board[i][j] = Player.PLAYER_REPRESENTATIONS['red']
-                            score = alphaBetaMinimax('red', i, j, True, alpha, beta)
+                            score = alphaBetaMinimax(depth + 1,'red', i, j, True, alpha, beta)
 
                             if (score < bestScore):
                                 bestScore = score
+                            
+                            self.board[i][j] = 0
+                            
+                            # print(f'alpha before: {alpha}')
+                            # print(f'beta before: {beta}')
 
                             # Alpha-beta pruning
                             beta = min(beta, bestScore)
+
+                            # print(f'alpha after: {alpha}')
+                            # print(f'beta after: {beta}')
+
                             if beta <= alpha:
+                                # print("*********** PRUNED ********** inside minimising") # -------------- TEST ---------------
+                                breakOutOfNestedLoop = True
                                 break
 
-                            self.board[i][j] = 0
+                            
                             # print('score: ', score, "bestscore: ", bestScore)
+                    
+                    if breakOutOfNestedLoop:
+                        break
                                          
             
                 return bestScore
