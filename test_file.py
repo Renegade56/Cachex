@@ -1,165 +1,170 @@
+from queue import PriorityQueue
 
-def printBoard(board):
-    print(board[1] + '|' + board[2] + '|' + board[3])
-    print('-+-+-')
-    print(board[4] + '|' + board[5] + '|' + board[6])
-    print('-+-+-')
-    print(board[7] + '|' + board[8] + '|' + board[9])
-    print("\n")
+RED_PLAYER = -1
+BLUE_PLAYER = 1
 
+OUTSIDE_LEFT_HEX_POSITION = "L"
+OUTSIDE_RIGHT_HEX_POSITION = "R"
+OUTSIDE_TOP_HEX_POSITION = "T"
+OUTSIDE_BOTTOM_HEX_POSITION = "B"
 
-def spaceIsFree(position):
-    if board[position] == ' ':
-        return True
-    else:
-        return False
+board = [
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, -1, -1, -1, -1],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0]]
+# board = [
+#         [0, 0, 1, -1, 0],
+#         [0, 0, -1, 0, 0],
+#         [0, -1, 1, 0, 0],
+#         [1, 0, 0, 1, 0],
+#         [0, 0, -1, 0, 0]]
+size = 5
 
+def list_neighbours(coord, tokens, n):
+    neighbours_list = []
 
-def insertLetter(letter, position):
-    if spaceIsFree(position):
-        board[position] = letter
-        printBoard(board)
-        if (checkDraw()):
-            print("Draw!")
-            exit()
-        if checkForWin():
-            if letter == 'X':
-                print("Bot wins!")
-                exit()
-            else:
-                print("Player wins!")
-                exit()
+    if coord == OUTSIDE_LEFT_HEX_POSITION:
+        neighbours_list = [(i, 0) for i in range(size)]
+    elif coord == OUTSIDE_RIGHT_HEX_POSITION:
+        neighbours_list = [(size - i - 1, size - 1) for i in range(size)]
+    elif coord == OUTSIDE_TOP_HEX_POSITION:
+        neighbours_list = [(size - 1, size - i - 1) for i in range(size)]
+    elif coord == OUTSIDE_BOTTOM_HEX_POSITION:
+        neighbours_list = [(0, i) for i in range(size)]
+    else: 
+        # horizontal neighbours
+        if coord[1] != 0:
+            neighbours_list.append([coord[0], coord[1] - 1])
+        if coord[1] < n - 1:
+            neighbours_list.append([coord[0], coord[1] + 1])
 
-        return
+        # vertical neighbours
+        if coord[0] != 0:
+            neighbours_list.append([coord[0] - 1, coord[1]])
+            if coord[1] != n - 1:
+                neighbours_list.append([coord[0] - 1, coord[1] + 1])
 
+        if coord[0] < n - 1:
+            neighbours_list.append([coord[0] + 1, coord[1]])
+            if coord[1] != 0:
+                neighbours_list.append([coord[0] + 1, coord[1] - 1])
+    
+    neighbours_list2 = [tuple(elem) for elem in neighbours_list if tuple(elem) not in tokens]
 
-    else:
-        print("Can't insert there!")
-        position = int(input("Please enter new position:  "))
-        insertLetter(letter, position)
-        return
+    # # add imaginary outside hexes
+    # if type(coord) == tuple:
+    #     if coord[0] == 0:
+    #         neighbours_list2.append(OUTSIDE_LEFT_HEX_POSITION)
+    #     if coord[0] == size - 1:
+    #         neighbours_list2.append(OUTSIDE_RIGHT_HEX_POSITION)
+    #     if coord[1] == size - 1:
+    #         neighbours_list2.append(OUTSIDE_TOP_HEX_POSITION)
+    #     if coord[1] == 0:
+    #         neighbours_list2.append(OUTSIDE_BOTTOM_HEX_POSITION)
 
+    return neighbours_list2
 
-def checkForWin():
-    if (board[1] == board[2] and board[1] == board[3] and board[1] != ' '):
-        return True
-    elif (board[4] == board[5] and board[4] == board[6] and board[4] != ' '):
-        return True
-    elif (board[7] == board[8] and board[7] == board[9] and board[7] != ' '):
-        return True
-    elif (board[1] == board[4] and board[1] == board[7] and board[1] != ' '):
-        return True
-    elif (board[2] == board[5] and board[2] == board[8] and board[2] != ' '):
-        return True
-    elif (board[3] == board[6] and board[3] == board[9] and board[3] != ' '):
-        return True
-    elif (board[1] == board[5] and board[1] == board[9] and board[1] != ' '):
-        return True
-    elif (board[7] == board[5] and board[7] == board[3] and board[7] != ' '):
-        return True
-    else:
-        return False
+def aStarHeuristic(goal, current):
 
+    bias = 0
+    # if current == OUTSIDE_LEFT_HEX_POSITION:
+    #     bias += 1
+    #     current = (0, goal[0])
+    # if current == OUTSIDE_RIGHT_HEX_POSITION:
+    #     bias += 1
+    #     current = (size - 1, goal[0])
+    # if current == OUTSIDE_BOTTOM_HEX_POSITION:
+    #     bias += 1
+    #     current = (goal[1], 0)
+    # if current == OUTSIDE_TOP_HEX_POSITION:
+    #     bias += 1
+    #     current = (goal[1], size - 1)
 
-def checkWhichMarkWon(mark):
-    if board[1] == board[2] and board[1] == board[3] and board[1] == mark:
-        return True
-    elif (board[4] == board[5] and board[4] == board[6] and board[4] == mark):
-        return True
-    elif (board[7] == board[8] and board[7] == board[9] and board[7] == mark):
-        return True
-    elif (board[1] == board[4] and board[1] == board[7] and board[1] == mark):
-        return True
-    elif (board[2] == board[5] and board[2] == board[8] and board[2] == mark):
-        return True
-    elif (board[3] == board[6] and board[3] == board[9] and board[3] == mark):
-        return True
-    elif (board[1] == board[5] and board[1] == board[9] and board[1] == mark):
-        return True
-    elif (board[7] == board[5] and board[7] == board[3] and board[7] == mark):
-        return True
-    else:
-        return False
+    # Manhattan distance on a hex grid
+    if (goal[1] == current[1]) & (goal[0] == current[0]):
+        return bias + 0
+    if goal[0] == current[0]: # same row
+        return bias + abs(goal[1] - current[1])
+    if goal[1] == current[1]: # same column
+        return bias + abs(goal[0] - current[0])
+    else: # column mismatch
+        if goal[1] > current[1]: # if column 2 > column 1
+            if goal[0] > current[0]: # if row 2 > row 1
+                return bias + abs(goal[0] - current[0]) + abs(goal[1] - current[1])
+            else: # if row 1 > row 2
+                return bias + max(abs(goal[0] - current[0]), abs(goal[1] - current[1]))
+        else: # if column 1 > column 2
+            if goal[0] > current[0]: # if row 2 > row 1
+                return bias + max(abs(goal[0] - current[0]), abs(goal[1] - current[1]))
+            else: # if row 1 > row 2
+                return bias + abs(goal[0] - current[0]) + abs(goal[1] - current[1])
 
+# print(aStarHeuristic((2, 2), OUTSIDE_RIGHT_HEX_POSITION))
 
-def checkDraw():
-    for key in board.keys():
-        if (board[key] == ' '):
-            return False
-    return True
+def aStarSearch(start, goal):
+    start_coordinates = start
+    goal_coordinates = goal
 
+    token_coordinates = []
 
-def playerMove():
-    position = int(input("Enter the position for 'O':  "))
-    insertLetter(player, position)
-    return
+    # Find blockages
+    for i in range(size):
+        for j in range(size):
+            if board[i][j] != 0:
+                token_coordinates.append((i, j))
 
+    frontier = PriorityQueue()
+    frontier.put(tuple(start_coordinates), 0)
+    came_from = dict()
+    cost_so_far = dict()
+    came_from[tuple(start_coordinates)] = None
+    cost_so_far[tuple(start_coordinates)] = 0
 
-def compMove():
-    bestScore = -800
-    bestMove = 0
-    for key in board.keys():
-        if (board[key] == ' '):
-            board[key] = bot
-            score = minimax(board, 0, False)
-            board[key] = ' '
-            if (score > bestScore):
-                bestScore = score
-                bestMove = key
+    while not frontier.empty():
+        current = frontier.get()
 
-    insertLetter(bot, bestMove)
-    return
+        if current == goal_coordinates:
+            break
+        
+        # if str(current[0]).isalpha():
+        #     current = current[0]
+        # else:
+        #     current = tuple(map(int, current))
 
+        for next in list_neighbours(current, token_coordinates, size):
+            
+            new_cost = cost_so_far[current] + 1
 
-def minimax(board, depth, isMaximizing):
-    if (checkWhichMarkWon(bot)):
-        return 1
-    elif (checkWhichMarkWon(player)):
-        return -1
-    elif (checkDraw()):
+            if next not in cost_so_far or new_cost < cost_so_far[next]:
+                
+                cost_so_far[next] = new_cost
+                priority = new_cost + aStarHeuristic(goal_coordinates, next)
+                # next = tuple(map(str, next))
+
+                frontier.put(next, priority)
+                came_from[next] = current
+    
+    print(goal_coordinates)
+    print(cost_so_far)
+
+    if tuple(goal_coordinates) not in cost_so_far:
         return 0
-
-    if (isMaximizing):
-        bestScore = -800
-        for key in board.keys():
-            if (board[key] == ' '):
-                board[key] = bot
-                score = minimax(board, depth + 1, False)
-                board[key] = ' '
-                if (score > bestScore):
-                    bestScore = score
-        return bestScore
-
     else:
-        bestScore = 800
-        for key in board.keys():
-            if (board[key] == ' '):
-                board[key] = player
-                score = minimax(board, depth + 1, True)
-                board[key] = ' '
-                if (score < bestScore):
-                    bestScore = score
-        return bestScore
+        return cost_so_far[tuple(goal_coordinates)] + 1
 
+def check_pos(d_pos, d_size):
+	# check validity of pos
+	try:
+		pi = d_pos[0]
+		pj = d_pos[1]
+		if pi<0 or pi>=d_size or pj<0 or pj>=d_size:
+			return False
+		else:
+			return True
+	except Exception:
+		# could be type error or something
+		return False
 
-board = {1: ' ', 2: ' ', 3: ' ',
-         4: ' ', 5: ' ', 6: ' ',
-         7: ' ', 8: ' ', 9: ' '}
-
-printBoard(board)
-print("Computer goes first! Good luck.")
-print("Positions are as follow:")
-print("1, 2, 3 ")
-print("4, 5, 6 ")
-print("7, 8, 9 ")
-print("\n")
-player = 'O'
-bot = 'X'
-
-
-global firstComputerMove
-firstComputerMove = True
-
-while not checkForWin():
-    compMove()
-    playerMove()
+print(aStarSearch((0, 0), (2, 4)))
