@@ -89,7 +89,7 @@ def dijkstra_red(size, start, board):
         (dist, current_vertex) = pq.get()
         visited.add(current_vertex)
 
-        for neighbour in list_neighbours:
+        for neighbour in list_neighbours(current_vertex, size):
             if neighbour in obstacles:
                 add_edge(current_vertex, neighbour, 1000000, edges)
             elif neighbour in friendly:
@@ -153,7 +153,7 @@ def dijkstra_blue(size, start, board):
         (dist, current_vertex) = pq.get()
         visited.add(current_vertex)
 
-        for neighbour in list_neighbours:
+        for neighbour in list_neighbours(current_vertex, size):
             if neighbour in obstacles:
                 add_edge(current_vertex, neighbour, 1000000, edges)
             elif neighbour in friendly:
@@ -169,4 +169,3 @@ def dijkstra_blue(size, start, board):
                 pq.put((new_cost, neighbour))
                 D[neighbour] = new_cost
     return D
-    
