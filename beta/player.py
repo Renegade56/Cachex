@@ -13,7 +13,7 @@ class Player:
         "blue": 1
     }
 
-    MAX_DEPTH = 2
+    MAX_DEPTH = 1
 
 
 
@@ -104,6 +104,7 @@ class Player:
             # Use bfs from start coordinate
             reachable = set()
             queue = Queue(0)
+            
             queue.put(start_coord)
 
             while not queue.empty():
@@ -405,7 +406,7 @@ class Player:
                 for i in range(self.board_size):
                     if self.board[i][0] == Player.PLAYER_REPRESENTATIONS['red']:
                         path_length_1 = track_path_len(self.board, which_player, (i, 0), self.board_size)
-                    if self.board[i][self.board_size-1] == Player.PLAYER_REPRESENTATIONS['red']:
+                    if self.board[i][self.board_size-1] == Player.PLAYER_REPRESENTATIONS['red']:    
                         path_length_2 = track_path_len_opposite_direction(self.board, which_player, (i, self.board_size-1), self.board_size)
                     score -= 10 * max(path_length_1, path_length_2)
             if which_player == Player.PLAYER_REPRESENTATIONS['blue']:
@@ -449,124 +450,179 @@ class Player:
 
             return
 
-        def aStarHeuristic(goal, current):
-            # Manhattan distance on a hex grid
-            if (goal[1] == current[1]) & (goal[0] == current[0]):
-                return 0
-            if goal[0] == current[0]: # same row
-                return abs(goal[1] - current[1])
-            if goal[1] == current[1]: # same column
-                return abs(goal[0] - current[0])
-            else: # column mismatch
-                if goal[1] > current[1]: # if column 2 > column 1
-                    if goal[0] > current[0]: # if row 2 > row 1
-                        return abs(goal[0] - current[0]) + abs(goal[1] - current[1])
-                    else: # if row 1 > row 2
-                        return max(abs(goal[0] - current[0]), abs(goal[1] - current[1]))
-                else: # if column 1 > column 2
-                    if goal[0] > current[0]: # if row 2 > row 1
-                        return max(abs(goal[0] - current[0]), abs(goal[1] - current[1]))
-                    else: # if row 1 > row 2
-                        return abs(goal[0] - current[0]) + abs(goal[1] - current[1])
+       
+        def add_edge(start_vertex, end_vertex, weight, edges):
+            edges[(start_vertex, end_vertex)] = weight
 
-        def aStarSearch(start, goal):
+        # search for djikstra shortest path from every cell on the red border to every other cell on the other red border
+        def search_dijkstra_red(size, board):
+            min_path = 1000000
+            for i in range(size):
+                start = (0, i)
 
-            start_coordinates = start
-            goal_coordinates = goal
+
+                # print(f"start: {start}")
+
+                result = dijkstra_red(size, start, board)
+                for j in range(size):
+                    # print(f"dijkstra result: {result}")
+                    curr_path = result[size - 1, j]
+                    if curr_path < min_path:
+                        min_path = curr_path
+                    
+            #         print(f"curr path: {curr_path}\n-----------\n")
             
-            token_coordinates = []
-            for i in range(self.board_size):
-                for j in range(self.board_size):
-                    if self.board[i][j] != 0:
-                        token_coordinates.append((i, j))
+            # print(f"min_path: {min_path}")
+            return min_path
 
-            frontier = PriorityQueue()
-            frontier.put(tuple(start_coordinates), 0)
-            came_from = dict()
-            cost_so_far = dict()
-            came_from[tuple(start_coordinates)] = None
-            cost_so_far[tuple(start_coordinates)] = 0
+        # djikstra shortest path for RED player
+        def dijkstra_red(size, start, board):
+            start_vertex = start
+            edges = {}
+            D = {}
+            friendly = set()
+            obstacles = set()
+            visited = set()
 
-            while not frontier.empty():
-                current = frontier.get()
-
-                if current == goal_coordinates:
-                    break
-                
-                for next in list_neighbours_search(current, token_coordinates, self.board_size):
-                    new_cost = cost_so_far[tuple(current)] + 1
-
-                    if next not in cost_so_far or new_cost < cost_so_far[next]:
-                        cost_so_far[next] = new_cost
-                        priority = new_cost + aStarHeuristic(goal_coordinates, next)
-                        frontier.put(next, priority)
-                        came_from[next] = current
-    
-            if tuple(goal_coordinates) not in cost_so_far:
-                return 0
+            for i in range(size):
+                for j in range(size):
+                    D[(i, j)] = float('inf')
+                    if board[i][j] == 1: #if hex is a blue piece
+                        obstacles.add((i, j))
+                    elif board[i][j] == -1: #if hex is a red piece
+                        friendly.add((i, j))
+            
+            if start in friendly:
+                D[start_vertex] = 0
+            elif start in obstacles:
+                D[start_vertex] = 100000
             else:
-                return cost_so_far[tuple(goal_coordinates)] + 1
+                D[start_vertex] = 1
 
-        def heuristic_aStarSearch():
-            # Using A Star as the heuristic to determine state of board
+            # print(f"D: {D}")
+            # print(f"Friendly: {friendly}")
+            # print(f"Obstacles: {obstacles}")
+            
+            pq = PriorityQueue()
+            pq.put((0, start_vertex))
+
+            while not pq.empty():
+                
+                (dist, current_vertex) = pq.get()
+                # print(f"next in priority queue: {(dist, current_vertex)}")
+                visited.add(current_vertex)
+
+                # print(f"neighbours: {list_neighbours(current_vertex, size)}")
+                for neighbour in list_neighbours(current_vertex, size):
+                    if neighbour in obstacles:
+                        add_edge(current_vertex, neighbour, 1000000, edges)
+                    elif neighbour in friendly:
+                        add_edge(current_vertex, neighbour, 0, edges)
+                    else:
+                        add_edge(current_vertex, neighbour, 1, edges)
+                
+                # print(f"edges: {edges}")
+
+                # for neighbour in range(size):
+                    distance = edges[current_vertex, neighbour]
+                    if neighbour not in visited:
+                        old_cost = D[neighbour]
+                        new_cost = D[current_vertex] + distance
+                        if new_cost < old_cost:
+                            pq.put((new_cost, neighbour))
+                            D[neighbour] = new_cost
+
+                # print(f"D: {D}")
+
+            return D
+
+        # search for djikstra shortest path from every cell on the blue border to every other cell on the other blue border
+        def search_dijkstra_blue(size, board):
+            min_path = 1000000
+            for i in range(size):
+                start = (i, 0)
+                result = dijkstra_blue(size, start, board)
+                for j in range(size):
+                    curr_path = result[j, size - 1]
+                    if curr_path < min_path:
+                        min_path = curr_path
+            return min_path
+
+        # djikstra shortest path for BLUE player
+        def dijkstra_blue(size, start, board):
+            start_vertex = start
+            edges = {}
+            D = {}
+            friendly = set()
+            obstacles = set()
+            visited = set()
+
+            for i in range (size):
+                for j in range(size):
+                    D[(i, j)] = float('inf')
+                    if board[i][j] == -1: #if hex is a red piece
+                        obstacles.add((i, j))
+                    elif board[i][j] == 1: #if hex is a blue piece
+                        friendly.add((i, j))
+
+            if start in friendly:
+                D[start_vertex] = 0
+            elif start in obstacles:
+                D[start_vertex] = 100000
+            else:
+                D[start_vertex] = 1
+            
+            pq = PriorityQueue()
+            pq.put((0, start_vertex))
+
+            while not pq.empty():
+                (dist, current_vertex) = pq.get()
+                visited.add(current_vertex)
+
+                for neighbour in list_neighbours(current_vertex, size):
+                    if neighbour in obstacles:
+                        add_edge(current_vertex, neighbour, 1000000, edges)
+                    elif neighbour in friendly:
+                        add_edge(current_vertex, neighbour, 0, edges)
+                    else:
+                        add_edge(current_vertex, neighbour, 1, edges)
+                
+                    distance = edges[current_vertex, neighbour]
+                    if neighbour not in visited:
+                        old_cost = D[neighbour]
+                        new_cost = D[current_vertex] + distance
+                        if new_cost < old_cost:
+                            pq.put((new_cost, neighbour))
+                            D[neighbour] = new_cost
+            return D
+
+        def heuristic(last_move, which_player):
+
             score = 0
 
-            TOP_BORDER_HEXES = [(self.board_size - 1, i) for i in range(self.board_size)]
-            BOTTOM_BORDER_HEXES = [(0, i) for i in range(self.board_size)]
-            LEFT_BORDER_HEXES = [(i, 0) for i in range(self.board_size)]
-            RIGHT_BORDER_HEXES = [(self.board_size - 1, 0) for i in range(self.board_size)]
-           
-            # For each hex
-            for i in range(self.board_size):
-                for j in range(self.board_size):
-                    
-                    # for each player
-                    if self.board[i][j] == Player.PLAYER_REPRESENTATIONS['blue']:
-                        for hex in LEFT_BORDER_HEXES:
-                            score -= aStarSearch((i,j), hex)
-
-                        for hex in RIGHT_BORDER_HEXES:
-                            score -= aStarSearch((i, j), hex)
-                    
-                    elif self.board[i][j] == Player.PLAYER_REPRESENTATIONS['red']:
-                        for hex in LEFT_BORDER_HEXES:
-                            score += aStarSearch((i, j), hex)
-
-                        for hex in RIGHT_BORDER_HEXES:
-                            score += aStarSearch((i, j), hex)
+            # # Consider possible captures
+            # neighbours_of_last_move = list_neighbours(last_move, self.board_size)
+            # for coord in neighbours_of_last_move:
+            #     if self.board[coord] != 0:
+            #         neighbours_of_last_move.remove(coord)
             
-            return score
+            # for coord in neighbours_of_last_move:
+            #     if self.capturing(coord): # [(0, 1), (2, 0)]
+            #         score += 50
 
-        def heuristic_dijkstra():
-            
-            # def findShortestPathsUsingDijkstra(_from, perspective)
 
-            # def getShortestPathFrom(_from, to, perspective):
-            #     findShortestPathsUsingDijkstra(_from, perspective)
+            if self.capturing(last_move): # [(0, 1), (2, 0)]
+                score += 100000
 
-            # # For each hex
-            # for i in range(self.board_size):
-            #     for j in range(self.board_size):
-            #         getShortestPathFrom(self.board[i][j], 'red') # change perspective later
+            # Opening
+            if self.turn_number < self.board_size:
+                score += 2 * bridging_factor() + 2 * centred()
 
-            
-
-            # # Shortest path using Dijkstra
-            # AIPath = 
-            # playerPath = 
-            # def getScoreForPath(path, value):
-
-            #     return
-            
-            # AIScore = getScoreForPath(AIPath, )
-            # playerScore = getScoreForPath(playerPath, )
-
-            # return AIScore - playerScore
-            return
-
-        def heuristic(which_player):
-
-            heuristic_score = 5 * connect_degree(which_player) #+ 1.5 * centred()
+            # Midgame
+            else:
+                red_score = search_dijkstra_red(self.board_size, self.board)
+                blue_score = search_dijkstra_blue(self.board_size, self.board)
+                score += red_score - blue_score
 
             # print(f"heuristic score: {heuristic_score}")
             # print(self.board[::-1])
@@ -575,7 +631,7 @@ class Player:
 
             # time.sleep(0.2271)
 
-            return heuristic_score
+            return score
         
         def alphaBetaMinimax(depth, last_player, last_x, last_y, isMaxPlayer, alpha, beta):
 
@@ -588,11 +644,8 @@ class Player:
 
             # HEURISTIC FUNCTION
             if (depth >= Player.MAX_DEPTH):
-                # if last_player == 'blue':
-                #     return heuristic('red')
-                # else:
-                #     return heuristic('blue')
-                return heuristic(last_player)
+                # return heuristic(last_player)
+                return heuristic((last_x, last_y), last_player)
 
             # if (depth >= Player.MAX_DEPTH):
             #     return heuristic_aStarSearch()
