@@ -84,6 +84,11 @@ class Player:
 
     def action(self):
 
+        OUTSIDE_LEFT_HEX_POSITION = (123, 123)
+        OUTSIDE_RIGHT_HEX_POSITION = (234, 234)
+        OUTSIDE_TOP_HEX_POSITION = (345, 345)
+        OUTSIDE_BOTTOM_HEX_POSITION = (456, 456)
+
         """
         Called at the beginning of your turn. Based on the current state
         of the game, select an action to play.
@@ -141,27 +146,80 @@ class Player:
 
             return neighbours_list2
 
-        def list_neighbours_search(coord, tokens, n):
+        # print out the immediate neighbours of a cell (if they are within the game boundaries)
+        def list_neighbours_red(coord, n):
             neighbours_list = []
-    
-            # horizontal neighbours
-            if coord[1] != 0:
-                neighbours_list.append([coord[0], coord[1] - 1])
-            if coord[1] < n - 1:
-                neighbours_list.append([coord[0], coord[1] + 1])
 
-            # vertical neighbours
-            if coord[0] != 0:
-                neighbours_list.append([coord[0] - 1, coord[1]])
-                if coord[1] != n - 1:
-                    neighbours_list.append([coord[0] - 1, coord[1] + 1])
+            if coord == OUTSIDE_TOP_HEX_POSITION:
+                neighbours_list = [(self.board_size - 1, self.board_size - i - 1) for i in range(self.board_size)]
+            elif coord == OUTSIDE_BOTTOM_HEX_POSITION:
+                neighbours_list = [(0, i) for i in range(self.board_size)]
 
-            if coord[0] < n - 1:
-                neighbours_list.append([coord[0] + 1, coord[1]])
+            else: 
+                # horizontal neighbours
                 if coord[1] != 0:
-                    neighbours_list.append([coord[0] + 1, coord[1] - 1])
+                    neighbours_list.append([coord[0], coord[1] - 1])
+                if coord[1] < n - 1:
+                    neighbours_list.append([coord[0], coord[1] + 1])
+
+                # vertical neighbours
+                if coord[0] != 0:
+                    neighbours_list.append([coord[0] - 1, coord[1]])
+                    if coord[1] != n - 1:
+                        neighbours_list.append([coord[0] - 1, coord[1] + 1])
+
+                if coord[0] < n - 1:
+                    neighbours_list.append([coord[0] + 1, coord[1]])
+                    if coord[1] != 0:
+                        neighbours_list.append([coord[0] + 1, coord[1] - 1])
             
-            neighbours_list2 = [tuple(elem) for elem in neighbours_list if tuple(elem) not in tokens]
+            neighbours_list2 = [tuple(elem) for elem in neighbours_list]
+
+            # add imaginary outside hexes
+            if type(coord) == tuple:
+                
+                if coord[0] == 0:
+                    neighbours_list2.append(OUTSIDE_BOTTOM_HEX_POSITION)
+                if coord[0] == self.board_size - 1:
+                    neighbours_list2.append(OUTSIDE_TOP_HEX_POSITION)
+
+            return neighbours_list2
+
+        def list_neighbours_blue(coord, n):
+            neighbours_list = []
+
+            if coord == OUTSIDE_LEFT_HEX_POSITION:
+                neighbours_list = [(i, 0) for i in range(self.board_size)]
+            elif coord == OUTSIDE_RIGHT_HEX_POSITION:
+                neighbours_list = [(self.board_size - i - 1, self.board_size - 1) for i in range(self.board_size)]
+
+            else: 
+                # horizontal neighbours
+                if coord[1] != 0:
+                    neighbours_list.append([coord[0], coord[1] - 1])
+                if coord[1] < n - 1:
+                    neighbours_list.append([coord[0], coord[1] + 1])
+
+                # vertical neighbours
+                if coord[0] != 0:
+                    neighbours_list.append([coord[0] - 1, coord[1]])
+                    if coord[1] != n - 1:
+                        neighbours_list.append([coord[0] - 1, coord[1] + 1])
+
+                if coord[0] < n - 1:
+                    neighbours_list.append([coord[0] + 1, coord[1]])
+                    if coord[1] != 0:
+                        neighbours_list.append([coord[0] + 1, coord[1] - 1])
+            
+            neighbours_list2 = [tuple(elem) for elem in neighbours_list]
+
+            # add imaginary outside hexes
+            if type(coord) == tuple:
+                
+                if coord[1] == self.board_size - 1:
+                    neighbours_list2.append(OUTSIDE_RIGHT_HEX_POSITION)
+                if coord[1] == 0:
+                    neighbours_list2.append(OUTSIDE_LEFT_HEX_POSITION)
 
             return neighbours_list2
 
@@ -322,106 +380,7 @@ class Player:
                         
                         # print(f"heuristic score is: {score}")
             return score
-        
-        def good_half_neighbour(which_player, pos):
-            # i is letter and j is number
-            (i, j) = pos
-            neighbour_list = []
-            if which_player == Player.PLAYER_REPRESENTATIONS['blue']:
-                possible_pos_list = [ (i-1, j+1), (i, j+1), (i+1, j) ] # left to right
-            elif which_player == Player.PLAYER_REPRESENTATIONS['red']:
-                possible_pos_list = [ (i+1, j-1), (i+1, j), (i, j+1) ] # up to down
-            for possible_pos in possible_pos_list:
-                if (check_pos(possible_pos, self.board_size)):
-                    neighbour_list.append(possible_pos)
-            return neighbour_list
 
-        def track_path_len(which_player, pos):
-            path_len = 1
-            i = pos[0]
-            j = pos[1]
-            next_i = i
-            next_j = j
-
-            while(check_pos((next_i,next_j), self.board_size)):
-                
-                found = False
-                for good_neighbour in good_half_neighbour(which_player, (next_i, next_j), self.board_size):
-                    
-                    if self.board[good_neighbour[0]][good_neighbour[1]] == which_player:
-                        next_i = good_neighbour[0]
-                        next_j = good_neighbour[1]
-                        found = True
-
-                        path_len += 1
-                        break
-                if found == False:
-                    break
-
-            return path_len
-
-        def good_half_neighbour_opposite_direction(which_player, pos):
-            # i is letter and j is number
-            (i, j) = pos
-            neighbour_list = []
-            if which_player == Player.PLAYER_REPRESENTATIONS['blue']:
-                possible_pos_list = [ (i-1, j), (i, j-1), (i+1, j-1) ] # red, right to left
-            elif which_player == Player.PLAYER_REPRESENTATIONS['red']:
-                possible_pos_list = [ (i-1, j), (i-1, j+1), (i, j-1) ] # blue, down to up
-            for possible_pos in possible_pos_list:
-                if (check_pos(possible_pos, self.board_size)):
-                    neighbour_list.append(possible_pos)
-            return neighbour_list
-
-        def track_path_len_opposite_direction(which_player, pos):
-            path_len = 1
-            i = pos[0]
-            j = pos[1]
-            next_i = i
-            next_j = j
-
-            while(check_pos((next_i,next_j), self.board_size)):
-                found = False
-                for good_neighbour in good_half_neighbour_opposite_direction(which_player, (next_i, next_j)):
-                    
-                    if self.board[good_neighbour[0]][good_neighbour[1]] == which_player:
-                        next_i = good_neighbour[0]
-                        next_j = good_neighbour[1]
-                        found = True
-                        path_len += 1
-                        break
-                
-                if found == False:
-                    break
-
-            return path_len
-
-        def connect_degree(which_player):
-            score = 0
-            path_length_1 = 0
-            path_length_2 = 0
-            if which_player == Player.PLAYER_REPRESENTATIONS['red']:
-                if self.board[self.board_size - 1][self.board_size // 2] == Player.PLAYER_REPRESENTATIONS['red']:
-                    score -= 50
-                for i in range(self.board_size):
-                    if self.board[i][0] == Player.PLAYER_REPRESENTATIONS['red']:
-                        path_length_1 = track_path_len(self.board, which_player, (i, 0), self.board_size)
-                    if self.board[i][self.board_size-1] == Player.PLAYER_REPRESENTATIONS['red']:    
-                        path_length_2 = track_path_len_opposite_direction(self.board, which_player, (i, self.board_size-1), self.board_size)
-                    score -= 10 * max(path_length_1, path_length_2)
-            if which_player == Player.PLAYER_REPRESENTATIONS['blue']:
-                if self.board[self.board_size // 2][0] == Player.PLAYER_REPRESENTATIONS['blue']:
-                    score += 50
-                if self.board[self.board_size // 2][self.board_size - 1] == Player.PLAYER_REPRESENTATIONS['blue']:
-                    score += 50
-                for i in range(self.board_size):
-                    if self.board[0][i] == Player.PLAYER_REPRESENTATIONS['blue']:
-                        path_length_1 = track_path_len(self.board, which_player, (0, i), self.board_size)
-                    if self.board[self.board_size-1][i] == Player.PLAYER_REPRESENTATIONS['blue']:
-                        path_length_2 = track_path_len_opposite_direction(self.board, which_player, (self.board_size-1, i), self.board_size)
-                    score += 10 * max(path_length_1, path_length_2)
-            return score
-        
         def centred():
             score = 0
             center = (self.board_size // 2, self.board_size // 2)
@@ -437,43 +396,18 @@ class Player:
                         count -= 1
                     elif (value == Player.PLAYER_REPRESENTATIONS['blue']):
                         count += 1
-                if count >= 4:
-                    score -= 20 # unnecessarily too many blues
-                elif count <= -4:
-                    score += 20 # unnecessarily too many reds
+
             return score
 
-        def defend():
-            # If opponent seeks to destroy bridge, defend the bridge by playing the second available connecting route
-            
-
-
-            return
-
-       
         def add_edge(start_vertex, end_vertex, weight, edges):
             edges[(start_vertex, end_vertex)] = weight
 
         # search for djikstra shortest path from every cell on the red border to every other cell on the other red border
         def search_dijkstra_red(size, board):
-            min_path = 1000000
-            for i in range(size):
-                start = (0, i)
 
-
-                # print(f"start: {start}")
-
-                result = dijkstra_red(size, start, board)
-                for j in range(size):
-                    # print(f"dijkstra result: {result}")
-                    curr_path = result[size - 1, j]
-                    if curr_path < min_path:
-                        min_path = curr_path
-                    
-            #         print(f"curr path: {curr_path}\n-----------\n")
-            
-            # print(f"min_path: {min_path}")
-            return min_path
+            start = OUTSIDE_BOTTOM_HEX_POSITION
+            result = dijkstra_red(size, start, board)
+            return result[OUTSIDE_TOP_HEX_POSITION]
 
         # djikstra shortest path for RED player
         def dijkstra_red(size, start, board):
@@ -491,6 +425,10 @@ class Player:
                         obstacles.add((i, j))
                     elif board[i][j] == -1: #if hex is a red piece
                         friendly.add((i, j))
+
+            # Add imaginary hexes
+            D[OUTSIDE_TOP_HEX_POSITION] = float('inf')
+            D[OUTSIDE_BOTTOM_HEX_POSITION] = float('inf')
             
             if start in friendly:
                 D[start_vertex] = 0
@@ -512,8 +450,25 @@ class Player:
                 # print(f"next in priority queue: {(dist, current_vertex)}")
                 visited.add(current_vertex)
 
+                if current_vertex == OUTSIDE_TOP_HEX_POSITION:
+                    for i in range(size - 1):
+                        add_edge(current_vertex, (size - 1, i), 0, edges)
+                
+                if current_vertex == OUTSIDE_BOTTOM_HEX_POSITION:
+                    for i in range(size - 1):
+                        add_edge(current_vertex, (0, i), 0, edges)
+
+                # print(f"current_vertex[0]: {current_vertex[0]}")
+                if current_vertex[0] == size - 1: # (4, 0), (4, 1) etc.
+                    add_edge(current_vertex, OUTSIDE_TOP_HEX_POSITION, 0, edges)
+                
+                if current_vertex[0] == 0: # (4, 0), (4, 1) etc.
+                    add_edge(current_vertex, OUTSIDE_BOTTOM_HEX_POSITION, 0, edges)
+                
+                # print(f"edges: {edges}")
+
                 # print(f"neighbours: {list_neighbours(current_vertex, size)}")
-                for neighbour in list_neighbours(current_vertex, size):
+                for neighbour in list_neighbours_red(current_vertex, size):
                     if neighbour in obstacles:
                         add_edge(current_vertex, neighbour, 1000000, edges)
                     elif neighbour in friendly:
@@ -521,10 +476,12 @@ class Player:
                     else:
                         add_edge(current_vertex, neighbour, 1, edges)
                 
-                # print(f"edges: {edges}")
+                    # print(f"edges1: {edges}")     # ((4, 3), 'T'): 0
 
                 # for neighbour in range(size):
                     distance = edges[current_vertex, neighbour]
+                    # print(f"current vertex: {current_vertex}, neighbour: {neighbour}, distance: {distance}")
+                    # print(f"D: {D}")
                     if neighbour not in visited:
                         old_cost = D[neighbour]
                         new_cost = D[current_vertex] + distance
@@ -538,15 +495,10 @@ class Player:
 
         # search for djikstra shortest path from every cell on the blue border to every other cell on the other blue border
         def search_dijkstra_blue(size, board):
-            min_path = 1000000
-            for i in range(size):
-                start = (i, 0)
-                result = dijkstra_blue(size, start, board)
-                for j in range(size):
-                    curr_path = result[j, size - 1]
-                    if curr_path < min_path:
-                        min_path = curr_path
-            return min_path
+
+            start = OUTSIDE_LEFT_HEX_POSITION
+            result = dijkstra_blue(size, start, board)
+            return result[OUTSIDE_RIGHT_HEX_POSITION]
 
         # djikstra shortest path for BLUE player
         def dijkstra_blue(size, start, board):
@@ -565,6 +517,10 @@ class Player:
                     elif board[i][j] == 1: #if hex is a blue piece
                         friendly.add((i, j))
 
+            # Add imaginary hexes
+            D[OUTSIDE_RIGHT_HEX_POSITION] = float('inf')
+            D[OUTSIDE_LEFT_HEX_POSITION] = float('inf')
+
             if start in friendly:
                 D[start_vertex] = 0
             elif start in obstacles:
@@ -579,7 +535,21 @@ class Player:
                 (dist, current_vertex) = pq.get()
                 visited.add(current_vertex)
 
-                for neighbour in list_neighbours(current_vertex, size):
+                if current_vertex == OUTSIDE_RIGHT_HEX_POSITION:
+                    for i in range(size - 1):
+                        add_edge(current_vertex, (i, size - 1), 0, edges)
+                
+                if current_vertex == OUTSIDE_LEFT_HEX_POSITION:
+                    for i in range(size - 1):
+                        add_edge(current_vertex, (i, 0), 0, edges)
+                
+                if current_vertex[1] == size - 1:
+                    add_edge(current_vertex, OUTSIDE_RIGHT_HEX_POSITION, 0, edges)
+                
+                if current_vertex[1] == 0:
+                    add_edge(current_vertex, OUTSIDE_LEFT_HEX_POSITION, 0, edges)
+
+                for neighbour in list_neighbours_blue(current_vertex, size):
                     if neighbour in obstacles:
                         add_edge(current_vertex, neighbour, 1000000, edges)
                     elif neighbour in friendly:
@@ -596,40 +566,57 @@ class Player:
                             D[neighbour] = new_cost
             return D
 
-        def heuristic(last_move, which_player):
+        def heuristic(last_move):
 
             score = 0
 
-            # # Consider possible captures
-            # neighbours_of_last_move = list_neighbours(last_move, self.board_size)
-            # for coord in neighbours_of_last_move:
-            #     if self.board[coord] != 0:
-            #         neighbours_of_last_move.remove(coord)
+            # if self.capturing(last_move): # [(0, 1), (2, 0)]
+            #     score += 100000
+
+            # print(f"score after possible capturing: {score}")
             
-            # for coord in neighbours_of_last_move:
-            #     if self.capturing(coord): # [(0, 1), (2, 0)]
-            #         score += 50
-
-
-            if self.capturing(last_move): # [(0, 1), (2, 0)]
-                score += 100000
+            # time.sleep(0.2271)
 
             # Opening
-            if self.turn_number < self.board_size:
-                score += 2 * bridging_factor() + 2 * centred()
+            if self.turn_number < self.board_size // 2:
+                bridging_score = bridging_factor()
+                centred_score = centred()
+
+                # print(f"bridging score: {bridging_score}")
+                # print(f"centred score: {centred_score}")
+                # print(f"piece diff score: {piece_difference_score}")
+
+                score += 2 * bridging_score + 2 * centred_score
 
             # Midgame
             else:
                 red_score = search_dijkstra_red(self.board_size, self.board)
                 blue_score = search_dijkstra_blue(self.board_size, self.board)
-                score += red_score - blue_score
+                # print(f"red_score: {red_score}")
+                # print(f"blue_score: {blue_score}")
+                # print(f"dijkstra score: {red_score - blue_score}")
+                dijkstra_score = red_score - blue_score
+                bridging_score = bridging_factor()
+
+                print(f"bridging score: {bridging_score}")
+                print(f"dijkstra score: {dijkstra_score}")
+                
+                score = bridging_score + 30 * dijkstra_score
+                
+                # print(f"bridging_score: {bridging_score}")
+                # print(f"dijkstra score: {red_score - blue_score}")
+                # print("---------------------")
+
+
+
 
             # print(f"heuristic score: {heuristic_score}")
             # print(self.board[::-1])
             # print("----------------")
 
-
-            # time.sleep(0.2271)
+            
+            # print(f"total score: {score}")
+            # print("===============")
 
             return score
         
@@ -643,9 +630,10 @@ class Player:
             # print(f"current depth: {depth}") # ---------TEST------------
 
             # HEURISTIC FUNCTION
+            # print(f"last player: {last_player}, last move: {last_x}, {last_y}")
             if (depth >= Player.MAX_DEPTH):
                 # return heuristic(last_player)
-                return heuristic((last_x, last_y), last_player)
+                return heuristic((last_x, last_y))
 
             # if (depth >= Player.MAX_DEPTH):
             #     return heuristic_aStarSearch()
