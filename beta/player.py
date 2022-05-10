@@ -15,8 +15,6 @@ class Player:
 
     MAX_DEPTH = 1
 
-
-
     def __init__(self, player, n):
         """
         Called once at the beginning of a game to initialise this player.
@@ -40,50 +38,10 @@ class Player:
         self.board = numpy.zeros((n, n), dtype=int)
         self.minimax_history = Counter({self.board.tobytes(): 1})
         self.history = Counter({self.board.tobytes(): 1})
-    
-    def capturing(self, coord):
-
-        _ADD = lambda a, b: (a[0] + b[0], a[1] + b[1])
-
-        _HEX_STEPS = numpy.array([(1, -1), (1, 0), (0, 1), (-1, 1), (-1, 0), (0, -1)], 
-            dtype="i,i")
-
-        _CAPTURE_PATTERNS = [[_ADD(n1, n2), n1, n2] 
-            for n1, n2 in 
-                list(zip(_HEX_STEPS, numpy.roll(_HEX_STEPS, 1))) + 
-                list(zip(_HEX_STEPS, numpy.roll(_HEX_STEPS, 2)))]
-
-        def inside_bounds(coord):
-            """
-            True iff coord inside board bounds.
-            """
-            r, q = coord
-            return r >= 0 and r < 3 and q >= 0 and q < 3
-        
-        _SWAP_PLAYER = { 0: 0, Player.PLAYER_REPRESENTATIONS['blue']: Player.PLAYER_REPRESENTATIONS['red'], Player.PLAYER_REPRESENTATIONS['red']: Player.PLAYER_REPRESENTATIONS['blue'] }
-        opp_type = self.board[coord]
-
-        mid_type = _SWAP_PLAYER[opp_type]
-        captured = set()
-
-        for pattern in _CAPTURE_PATTERNS:
-
-            coords = [_ADD(coord, s) for s in pattern]
-            # No point checking if any coord is outside the board!
-
-            # if all coords are legal
-            if all(map(inside_bounds, coords)):
-
-                tokens = [self.board[coord] for coord in coords]
-                if tokens == [opp_type, mid_type, mid_type]:
-                    # Capturing has to be deferred in case of overlaps
-                    # Both mid cell tokens should be captured
-                    captured.update(coords[1:])
-        
-        return list(captured)
 
     def action(self):
 
+        # Imaginary hexes used for Dijkstra's algorithm
         OUTSIDE_LEFT_HEX_POSITION = (123, 123)
         OUTSIDE_RIGHT_HEX_POSITION = (234, 234)
         OUTSIDE_TOP_HEX_POSITION = (345, 345)
@@ -265,7 +223,7 @@ class Player:
 
             return False
 
-        def AIMove():
+        def AIMoveBlue():
             bestScore = -1.0e40
             bestMove = 0
             depth = 0
@@ -273,36 +231,13 @@ class Player:
             alpha = -1.0e39
             beta = 1.0e39
 
-            scoreslol = []
-
             breakOutOfNestedLoop = False
             for i in range(0, self.board_size):
                 for j in range(0, self.board_size):
                     if self.board[i][j] == 0:
+
                         self.board[i][j] = Player.PLAYER_REPRESENTATIONS['blue']
-
-                        # ------ Implement capturing mechanism -------
-                        
-                        # if self.turn_number >= 4:
-                        #     hexes_to_capture = self.capturing((i, j))
-                        #     if hexes_to_capture: # [(0, 1), (2, 0)]
-                        #         for elem in hexes_to_capture:
-                        #             # self.c += 1
-                        #             # print("capturing iteration: ", self.c)
-                        #             self.board[elem] = 0
-
-                        # ------ End capturing mechanism -------
-
-                        # self.minimax_turn_number += 1
-                        # self.minimax_history[self.board.tobytes()] += 1
-
                         score = alphaBetaMinimax(depth, 'blue', i, j, False, alpha, beta)
-                        scoreslol.append((score, i, j)) # ---------TEST------------
-
-                        # reset
-                        # self.minimax_turn_number -= 1
-                        # self.minimax_history[self.board.tobytes()] -= 1
-
                         self.board[i][j] = 0
 
                         if (score > bestScore):
@@ -313,8 +248,6 @@ class Player:
                         alpha = max(alpha, bestScore)
 
                         if beta <= alpha:
-                            
-                            # print("*********** PRUNED ********** inside maximising") # -------------- TEST ---------------
                             breakOutOfNestedLoop = True
                             break
                 
@@ -323,12 +256,100 @@ class Player:
             
             self.iterations = 0
 
-            # for elem in scoreslol: # ---------TEST------------
-            #     print(f"for ({elem[1]}, {elem[2]}), score = {elem[0]}") 
-            
-            print(f"bestmove: {bestMove} ")
+            return ("PLACE", bestMove[0], bestMove[1])
+        
+        def AIMoveRed():
+            bestScore = 1.0e40
+            bestMove = 0
+            depth = 0
 
-            return ('PLACE', bestMove[0], bestMove[1])
+            alpha = -1.0e39
+            beta = 1.0e39
+
+            breakOutOfNestedLoop = False
+            for i in range(0, self.board_size):
+                for j in range(0, self.board_size):
+                    if self.board[i][j] == 0:
+                        
+                        self.board[i][j] = Player.PLAYER_REPRESENTATIONS['red']
+                        score = alphaBetaMinimax(depth, 'red', i, j, True, alpha, beta)
+
+                        self.board[i][j] = 0
+
+                        if (score < bestScore):
+                            bestScore = score      
+                            bestMove = (i, j)
+
+                        # Alpha-beta pruning
+                        beta = min(beta, bestScore)
+
+                        if beta <= alpha:
+                            breakOutOfNestedLoop = True
+                            break
+                
+                if breakOutOfNestedLoop:
+                    break
+            
+            self.iterations = 0
+
+            return ("PLACE", bestMove[0], bestMove[1])
+
+        # From referee
+        def capturing(coord):
+
+            _ADD = lambda a, b: (a[0] + b[0], a[1] + b[1])
+
+            _HEX_STEPS = numpy.array([(1, -1), (1, 0), (0, 1), (-1, 1), (-1, 0), (0, -1)], 
+                dtype="i,i")
+
+            _CAPTURE_PATTERNS = [[_ADD(n1, n2), n1, n2] 
+                for n1, n2 in 
+                    list(zip(_HEX_STEPS, numpy.roll(_HEX_STEPS, 1))) + 
+                    list(zip(_HEX_STEPS, numpy.roll(_HEX_STEPS, 2)))]
+
+            def inside_bounds(coord):
+                """
+                True iff coord inside board bounds.
+                """
+                r, q = coord
+                return r >= 0 and r < self.board_size and q >= 0 and q < self.board_size
+            
+            _SWAP_PLAYER = { 0: 0, Player.PLAYER_REPRESENTATIONS['blue']: Player.PLAYER_REPRESENTATIONS['red'], Player.PLAYER_REPRESENTATIONS['red']: Player.PLAYER_REPRESENTATIONS['blue'] }
+            opp_type = self.board[coord]
+
+            mid_type = _SWAP_PLAYER[opp_type]
+
+            captured = set()
+
+            for pattern in _CAPTURE_PATTERNS:
+                # [(1, -2), (1, -1), (0, -1)]  ,   [(2, -1), (1, 0), (1, -1)] etc
+
+                coords = [_ADD(coord, s) for s in pattern]
+
+                # No point checking if any coord is outside the board!
+
+                # if all coords are legal
+                if all(map(inside_bounds, coords)):
+
+                    tokens = [self.board[coord] for coord in coords]
+                    if tokens == [opp_type, mid_type, mid_type]:
+                        # Capturing has to be deferred in case of overlaps
+                        # Both mid cell tokens should be captured
+                        captured.update(coords[1:])
+            
+            return list(captured)
+
+        def piece_count():
+            blue_count = 0
+            red_count = 0
+            for i in range(self.board_size):
+                for j in range(self.board_size):
+                    if self.board[i][j] == Player.PLAYER_REPRESENTATIONS['red']:
+                        red_count += 1
+                    elif self.board[i][j] == Player.PLAYER_REPRESENTATIONS['blue']:
+                        blue_count += 1
+            
+            return (red_count, blue_count)               
 
         def check_pos(d_pos, d_size):
             # check validity of pos
@@ -353,7 +374,7 @@ class Player:
                     ends_list.append(possible_pos)
             return ends_list
 
-        def bridging_factor():
+        def bridging_factor(last_player): # "red" or "blue"
             score = 0
             for i in range(self.board_size):
                 for j in range(self.board_size):
@@ -370,13 +391,21 @@ class Player:
 
                         bridge_ends_list = bridge_ends((i,j), self.board_size)
 
-                        # For all bridges leading from this hex
-                        for n in bridge_ends_list:
-                            val = self.board[n[0]][n[1]]
-                            if val == current_player: # If bridge leads to another one of our pieces
-                                score += 3 * current_player
-                            elif val == -1 * current_player: # If bridge leads to an opponent piece
-                                score += -5 * current_player 
+                        if last_player == 'red':
+                            for n in bridge_ends_list:
+                                val = self.board[n[0]][n[1]]
+                                if val == current_player: # If bridge leads to another one of our pieces
+                                    score += -3 * current_player
+                                elif val == -1 * current_player: # If bridge leads to an opponent piece
+                                    score += 5 * current_player 
+                        
+                        elif last_player == 'blue':
+                            for n in bridge_ends_list:
+                                val = self.board[n[0]][n[1]]
+                                if val == current_player: # If bridge leads to another one of our pieces
+                                    score += 3 * current_player
+                                elif val == -1 * current_player: # If bridge leads to an opponent piece
+                                    score += -5 * current_player 
                         
                         # print(f"heuristic score is: {score}")
             return score
@@ -433,7 +462,7 @@ class Player:
             if start in friendly:
                 D[start_vertex] = 0
             elif start in obstacles:
-                D[start_vertex] = 100000
+                D[start_vertex] = 1000000
             else:
                 D[start_vertex] = 1
 
@@ -470,7 +499,7 @@ class Player:
                 # print(f"neighbours: {list_neighbours(current_vertex, size)}")
                 for neighbour in list_neighbours_red(current_vertex, size):
                     if neighbour in obstacles:
-                        add_edge(current_vertex, neighbour, 1000000, edges)
+                        add_edge(current_vertex, neighbour, 100, edges)
                     elif neighbour in friendly:
                         add_edge(current_vertex, neighbour, 0, edges)
                     else:
@@ -551,7 +580,7 @@ class Player:
 
                 for neighbour in list_neighbours_blue(current_vertex, size):
                     if neighbour in obstacles:
-                        add_edge(current_vertex, neighbour, 1000000, edges)
+                        add_edge(current_vertex, neighbour, 100, edges)
                     elif neighbour in friendly:
                         add_edge(current_vertex, neighbour, 0, edges)
                     else:
@@ -566,57 +595,65 @@ class Player:
                             D[neighbour] = new_cost
             return D
 
-        def heuristic(last_move):
+        def heuristic(last_player):
 
             score = 0
-
-            # if self.capturing(last_move): # [(0, 1), (2, 0)]
-            #     score += 100000
-
-            # print(f"score after possible capturing: {score}")
             
             # time.sleep(0.2271)
 
             # Opening
-            if self.turn_number < self.board_size // 2:
-                bridging_score = bridging_factor()
+            if self.turn_number < self.board_size:
+                bridging_score = bridging_factor(last_player)
                 centred_score = centred()
+                red_score = search_dijkstra_red(self.board_size, self.board)
+                blue_score = search_dijkstra_blue(self.board_size, self.board)
+                
+                red_piece_count = piece_count()[0]
+                blue_piece_count = piece_count()[1]
+
+                if last_player == "blue":
+                    piece_difference_score = blue_piece_count - red_piece_count
+                else:
+                    piece_difference_score = red_piece_count - blue_piece_count
+                
+                
+                dijkstra_score = red_score - blue_score
 
                 # print(f"bridging score: {bridging_score}")
                 # print(f"centred score: {centred_score}")
-                # print(f"piece diff score: {piece_difference_score}")
+                # print(f"dijkstra_score: {dijkstra_score}")
 
-                score += 2 * bridging_score + 2 * centred_score
+                score += 20 * dijkstra_score + 2 * bridging_score + 1 * centred_score #+ 1000 * piece_difference_score
 
             # Midgame
             else:
                 red_score = search_dijkstra_red(self.board_size, self.board)
                 blue_score = search_dijkstra_blue(self.board_size, self.board)
+
+                red_piece_count = piece_count()[0]
+                blue_piece_count = piece_count()[1]
+
+                if last_player == "blue":
+                    piece_difference_score = blue_piece_count - red_piece_count
+                else:
+                    piece_difference_score = red_piece_count - blue_piece_count
+                
                 # print(f"red_score: {red_score}")
                 # print(f"blue_score: {blue_score}")
                 # print(f"dijkstra score: {red_score - blue_score}")
-                dijkstra_score = red_score - blue_score
-                bridging_score = bridging_factor()
-
-                print(f"bridging score: {bridging_score}")
-                print(f"dijkstra score: {dijkstra_score}")
                 
-                score = bridging_score + 30 * dijkstra_score
+                dijkstra_score = red_score - blue_score
+
+                bridging_score = bridging_factor(last_player)
+
+                # print(f"bridging score: {bridging_score}")
+                # print(f"dijkstra score: {dijkstra_score}")
+                
+                score = 25 * dijkstra_score + bridging_score #+ 1000 * piece_difference_score
                 
                 # print(f"bridging_score: {bridging_score}")
                 # print(f"dijkstra score: {red_score - blue_score}")
                 # print("---------------------")
-
-
-
-
-            # print(f"heuristic score: {heuristic_score}")
-            # print(self.board[::-1])
-            # print("----------------")
-
-            
-            # print(f"total score: {score}")
-            # print("===============")
 
             return score
         
@@ -627,21 +664,13 @@ class Player:
             nv = -1.0e39 # negative infinity
             pv = 1.0e39 # positive infinity
 
-            # print(f"current depth: {depth}") # ---------TEST------------
-
             # HEURISTIC FUNCTION
-            # print(f"last player: {last_player}, last move: {last_x}, {last_y}")
             if (depth >= Player.MAX_DEPTH):
                 # return heuristic(last_player)
-                return heuristic((last_x, last_y))
-
-            # if (depth >= Player.MAX_DEPTH):
-            #     return heuristic_aStarSearch()
+                return heuristic(last_player)
 
             # EVALUATION FUNCTION
             result = game_end(last_player, last_x, last_y)
-
-
             
             # If end of game   
             if result == 'red':
@@ -659,45 +688,23 @@ class Player:
                 for i in range(0, self.board_size):
                     for j in range(0, self.board_size):
                         if self.board[i][j] == 0:
-                            self.board[i][j] = Player.PLAYER_REPRESENTATIONS['blue']
 
-                            # ------ Implement capturing mechanism -------
+                            if last_player == 'red':
+                                self.board[i][j] = Player.PLAYER_REPRESENTATIONS['blue']
+                                score = alphaBetaMinimax(depth + 1, 'blue', i, j, False, alpha, beta)
                             
-                            # if self.turn_number >= 4:
-                            #     hexes_to_capture = self.capturing((i, j))
-                            #     if hexes_to_capture: # [(0, 1), (2, 0)]
-                            #         for elem in hexes_to_capture:
-                            #             # self.c += 1
-                            #             # print("capturing iteration: ", self.c)
-                            #             self.board[elem] = 0
-
-                            # ------ End capturing mechanism -------
-
-                            # self.minimax_turn_number += 1
-                            # self.minimax_history[self.board.tobytes()] += 1
-
-                            score = alphaBetaMinimax(depth + 1, 'blue', i, j, False, alpha, beta)
+                            elif last_player == 'blue':
+                                self.board[i][j] = Player.PLAYER_REPRESENTATIONS['red']
+                                score = alphaBetaMinimax(depth + 1, 'red', i, j, True, alpha, beta)
 
                             # # reset
                             self.board[i][j] = 0
-                            # self.minimax_turn_number -= 1
-                            # self.minimax_history[self.board.tobytes()] -= 1
-
-                            # print(f"score: {score}") # -------------- TEST ---------------
 
                             if (score > bestScore):
                                 bestScore = score
 
-                            # print(f"best score: {bestScore}") # -------------- TEST ---------------
-                            
-                            # print(f'alpha before: {alpha}')
-                            # print(f'beta before: {beta}\n')
-
                             # Alpha-beta pruning
                             alpha = max(alpha, bestScore)
-
-                            # print(f'alpha after: {alpha}')
-                            # print(f'beta after: {beta}\n')
 
                             if beta <= alpha:
                                 # print("*********** PRUNED ********** inside maximising") # -------------- TEST ---------------
@@ -719,40 +726,22 @@ class Player:
                 for i in range(0, self.board_size):
                     for j in range(0, self.board_size):
                         if self.board[i][j] == 0:
-                            self.board[i][j] = Player.PLAYER_REPRESENTATIONS['red']
-
-                            # ------ Implement capturing mechanism -------
+                            if last_player == 'red':
+                                self.board[i][j] = Player.PLAYER_REPRESENTATIONS['blue']
+                                score = alphaBetaMinimax(depth + 1, 'blue', i, j, False, alpha, beta)
                             
-                            # if self.turn_number >= 4:
-                            #     hexes_to_capture = self.capturing((i, j))
-                            #     if hexes_to_capture: # [(0, 1), (2, 0)]
-                            #         for elem in hexes_to_capture:
-                            #             # self.c += 1
-                            #             # print("capturing iteration: ", self.c)
-                            #             self.board[elem] = 0
-                            # ------ End capturing mechanism -------
-
-                            # self.minimax_turn_number += 1
-                            # self.minimax_history[self.board.tobytes()] += 1
-
-                            score = alphaBetaMinimax(depth + 1,'red', i, j, True, alpha, beta)
+                            elif last_player == 'blue':
+                                self.board[i][j] = Player.PLAYER_REPRESENTATIONS['red']
+                                score = alphaBetaMinimax(depth + 1, 'red', i, j, True, alpha, beta)
 
                             # reset
                             self.board[i][j] = 0
-                            # self.minimax_turn_number -= 1
-                            # self.minimax_history[self.board.tobytes()] -= 1
 
                             if (score < bestScore):
                                 bestScore = score
-                            
-                            # print(f'alpha before: {alpha}')
-                            # print(f'beta before: {beta}')
 
                             # Alpha-beta pruning
                             beta = min(beta, bestScore)
-
-                            # print(f'alpha after: {alpha}')
-                            # print(f'beta after: {beta}')
 
                             if beta <= alpha:
                                 # print("*********** PRUNED ********** inside minimising") # -------------- TEST ---------------
@@ -767,11 +756,37 @@ class Player:
                                          
             
                 return bestScore
-        
-        # Main code
-        if self.colour == 'blue':
 
-            # Decide whether to steal
+        # ------------------------------------ MAIN CODE -----------------------------------------
+
+        # If there is an immediate capture to be made, make it straight away
+        if self.turn_number > 3:
+            for i in range(self.board_size):
+                for j in range(self.board_size):
+
+                    if self.board[i][j] == 0:
+                    
+                        if self.colour == 'blue':
+                            self.board[i][j] = Player.PLAYER_REPRESENTATIONS['blue']
+                        else:
+                            self.board[i][j] = Player.PLAYER_REPRESENTATIONS['red']
+
+                        # Capturing
+                        captured = capturing((i, j))
+
+                        self.board[i][j] = 0
+                        if captured:
+                            return ("PLACE", i, j)
+                        
+                        
+
+
+        # print(self.board[::-1])              
+
+        # Decide whether to steal
+        # As blue, if red plays on border, don't steal and then play in centre
+        # As red, play (size - 2, size - 3) or (size - 3, size - 1)
+        if self.colour == 'blue':
             if self.turn_number == 2:
                 
                 # Hexes not to steal
@@ -783,17 +798,27 @@ class Player:
                             safe_hexes.append((i, j))
 
                 if (self.last_placement[1], self.last_placement[2]) not in safe_hexes:
-                    return ('STEAL', )
+                    return ("STEAL", )
                 
                 else:
-                    # AI's turn
-                    return AIMove()
+                    return ("PLACE", self.board_size // 2, self.board_size // 2)
             
             # ONLY PLACE ACTIONS FROM TURN 3 ONWARDS
             else:
-                # AI's turn
-                return AIMove()
-
+                return AIMoveBlue()
+        
+        else:
+            if self.turn_number == 1:
+                return random.choice([
+                    ("PLACE", self.board_size - 2, self.board_size - 3), 
+                    ("PLACE", self.board_size - 3, self.board_size - 1)])
+            elif self.turn_number == 3:
+                if self.board[self.board_size // 2, self.board_size // 2] == 0:
+                    return ("PLACE", self.board_size // 2, self.board_size // 2)
+                else:
+                    return AIMoveRed()
+            else:
+                return AIMoveRed()
 
     def turn(self, player, action):
         """
@@ -806,17 +831,62 @@ class Player:
         the same as what your player returned from the action method
         above. However, the referee has validated it at this point.
         """
-        # put your code here
 
-        if action[0].upper() == 'PLACE': # 'PLACE'
+        # From referee
+        def capturing(coord):
+
+            _ADD = lambda a, b: (a[0] + b[0], a[1] + b[1])
+
+            _HEX_STEPS = numpy.array([(1, -1), (1, 0), (0, 1), (-1, 1), (-1, 0), (0, -1)], 
+                dtype="i,i")
+
+            _CAPTURE_PATTERNS = [[_ADD(n1, n2), n1, n2] 
+                for n1, n2 in 
+                    list(zip(_HEX_STEPS, numpy.roll(_HEX_STEPS, 1))) + 
+                    list(zip(_HEX_STEPS, numpy.roll(_HEX_STEPS, 2)))]
+
+            def inside_bounds(coord):
+                """
+                True iff coord inside board bounds.
+                """
+                r, q = coord
+                return r >= 0 and r < self.board_size and q >= 0 and q < self.board_size
+            
+            _SWAP_PLAYER = { 0: 0, Player.PLAYER_REPRESENTATIONS['blue']: Player.PLAYER_REPRESENTATIONS['red'], Player.PLAYER_REPRESENTATIONS['red']: Player.PLAYER_REPRESENTATIONS['blue'] }
+            opp_type = self.board[coord]
+
+            mid_type = _SWAP_PLAYER[opp_type]
+
+            captured = set()
+
+            for pattern in _CAPTURE_PATTERNS:
+                # [(1, -2), (1, -1), (0, -1)]  ,   [(2, -1), (1, 0), (1, -1)] etc
+
+                coords = [_ADD(coord, s) for s in pattern]
+
+                # No point checking if any coord is outside the board!
+
+                # if all coords are legal
+                if all(map(inside_bounds, coords)):
+
+                    tokens = [self.board[coord] for coord in coords]
+                    if tokens == [opp_type, mid_type, mid_type]:
+                        # Capturing has to be deferred in case of overlaps
+                        # Both mid cell tokens should be captured
+                        captured.update(coords[1:])
+            
+            return list(captured)
+
+        if action[0].upper() == 'PLACE': # 'PLACE' action
             self.board[action[1]][action[2]] = Player.PLAYER_REPRESENTATIONS[player]
 
             # Capturing
-            if self.capturing((action[1], action[2])): # [(0, 1), (2, 0)]
-                for elem in self.capturing((action[1], action[2])):
+            captured = capturing((action[1], action[2]))
+            if captured:
+                for elem in captured:
                     self.board[elem] = 0
             
-        else: # 'STEAL'
+        else: # 'STEAL' action
             is_looping = True
             for i in range(self.board_size):
                 for j in range(self.board_size):
@@ -827,7 +897,6 @@ class Player:
                 
                 if not is_looping:
                     break
-
 
         if action[0].upper() != "STEAL":
             self.last_placement = (player, action[1], action[2])
