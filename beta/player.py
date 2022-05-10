@@ -3,7 +3,6 @@ from collections import Counter
 import numpy
 from queue import Queue
 from queue import PriorityQueue
-import time
 import random
 
 class Player:
@@ -25,14 +24,13 @@ class Player:
         as Blue.
         """
 
-        # HOW TO REPRESENT THE BETA PLAYER'S BOARD?
-        self.colour = player # red or blue, in this case blue
-        self.board_size = n # 5
+        self.colour = player
+        self.board_size = n
         self.minimax_turn_number = 1
-        self.turn_number = 1 # Start from turn 1
+        self.turn_number = 1
         self.last_placement = tuple()
         self.iterations = 0
-        self.c=0
+        self.c = 0
         
         # Represent board as 2d array
         self.board = numpy.zeros((n, n), dtype=int)
@@ -52,7 +50,7 @@ class Player:
         of the game, select an action to play.
         """
         
-        # From board.py
+        # Adapted from board.py in Referee
         def connected_coords(start_coord):
             """
             Find connected coordinates from start_coord. This uses the token 
@@ -61,8 +59,6 @@ class Player:
             """
             # Get search token type
             token_type = self.board[start_coord]
-            # print("board: ", self.board) ------------DELETE-------------
-            # print(f"Token type: {token_type}")  ------------DELETE-------------
 
             # Use bfs from start coordinate
             reachable = set()
@@ -79,7 +75,7 @@ class Player:
 
             return list(reachable)
 
-        # lists out all neighbours of a particular hex
+        # lists out all neighbours of a particular hex - brought over from Project Part A
         def list_neighbours(coord, n):
             neighbours_list = []
             
@@ -104,7 +100,7 @@ class Player:
 
             return neighbours_list2
 
-        # print out the immediate neighbours of a cell (if they are within the game boundaries)
+        # print out the immediate neighbours of a cell for red (if they are within the game boundaries)
         def list_neighbours_red(coord, n):
             neighbours_list = []
 
@@ -143,6 +139,7 @@ class Player:
 
             return neighbours_list2
 
+        # print out the immediate neighbours of a cell for blue (if they are within the game boundaries)
         def list_neighbours_blue(coord, n):
             neighbours_list = []
 
@@ -181,7 +178,8 @@ class Player:
 
             return neighbours_list2
 
-        def game_end(last_player, lx, ly): # game_end(last_player='blue', last_x=i, last_y=j)  
+        # Game ending conditions
+        def game_end(last_player, lx, ly):
             
             PLAYER_AXIS = {
                 "red": 0, # Red aims to form path in r/0 axis
@@ -200,16 +198,15 @@ class Player:
 
             # Draw due to repetition
             if self.minimax_history[self.board.tobytes()] >= MAX_REPEAT_STATES:
-                print("DRAW DUE TO REPEATED STATES")
                 return 'draw'
 
             # Draw due to too many turns
             if self.minimax_turn_number >= MAX_TURNS:
-                print("DRAW DUE TO MAX TURNS")
                 return 'draw'
 
             return False
 
+        # Calculates move if AI is blue
         def AIMoveBlue(unfavourable_moves):
             bestScore = -1.0e40
             bestMove = 0
@@ -251,6 +248,7 @@ class Player:
 
             return ("PLACE", bestMove[0], bestMove[1])
         
+        # Calculates move if AI is red
         def AIMoveRed(unfavourable_moves):
             bestScore = 1.0e40
             bestMove = 0
@@ -293,7 +291,7 @@ class Player:
 
             return ("PLACE", bestMove[0], bestMove[1])
 
-        # From referee
+        # Capturing function - from Referee
         def capturing(coord):
 
             _ADD = lambda a, b: (a[0] + b[0], a[1] + b[1])
@@ -338,6 +336,8 @@ class Player:
             
             return list(captured)           
 
+        # Adapted from github user nuankw
+        # Source: https://github.com/nuankw/hex-game/blob/master/HexPlayer.py
         def check_pos(d_pos, d_size):
             # check validity of pos
             try:
@@ -351,6 +351,9 @@ class Player:
                 # could be type error or something
                 return False
 
+        # Adapted from github user nuankw
+        # Source: https://github.com/nuankw/hex-game/blob/master/HexPlayer.py
+        # Returns the 'ends' of bridges that can be made from a given hex
         def bridge_ends(pos, size):
             # i is letter and j is number
             (i, j) = pos
@@ -361,6 +364,9 @@ class Player:
                     ends_list.append(possible_pos)
             return ends_list
 
+        # Adapted from github user nuankw
+        # Source: https://github.com/nuankw/hex-game/blob/master/HexPlayer.py
+        # Returns an arbitrary score calculated based on the 'appeal' of creating bridges
         def bridging_factor(last_player): # "red" or "blue"
             score = 0
             for i in range(self.board_size):
@@ -397,6 +403,9 @@ class Player:
                         # print(f"heuristic score is: {score}")
             return score
 
+        # Adapted from github user nuankw
+        # Source: https://github.com/nuankw/hex-game/blob/master/HexPlayer.py
+        # Weights heuristic score based on how 'centred' a particular move causes the player to be
         def centred():
             score = 0
             center = (self.board_size // 2, self.board_size // 2)
@@ -415,17 +424,21 @@ class Player:
 
             return score
 
+        # Adapted from Stackabuse
+        # Source: https://stackabuse.com/dijkstras-algorithm-in-python/
         def add_edge(start_vertex, end_vertex, weight, edges):
             edges[(start_vertex, end_vertex)] = weight
 
-        # search for djikstra shortest path from every cell on the red border to every other cell on the other red border
+        # Search for djikstra shortest path from every cell on the red border to every other cell on the other red border
         def search_dijkstra_red(size, board):
 
             start = OUTSIDE_BOTTOM_HEX_POSITION
             result = dijkstra_red(size, start, board)
             return result[OUTSIDE_TOP_HEX_POSITION]
 
-        # djikstra shortest path for RED player
+        # Adapted from Stackabuse
+        # Source: https://stackabuse.com/dijkstras-algorithm-in-python/
+        # Djikstra shortest path for RED player
         def dijkstra_red(size, start, board):
             start_vertex = start
             edges = {}
@@ -509,14 +522,16 @@ class Player:
 
             return D
 
-        # search for djikstra shortest path from every cell on the blue border to every other cell on the other blue border
+        # Search for djikstra shortest path from every cell on the blue border to every other cell on the other blue border
         def search_dijkstra_blue(size, board):
 
             start = OUTSIDE_LEFT_HEX_POSITION
             result = dijkstra_blue(size, start, board)
             return result[OUTSIDE_RIGHT_HEX_POSITION]
 
-        # djikstra shortest path for BLUE player
+        # Adapted from Stackabuse
+        # Source: https://stackabuse.com/dijkstras-algorithm-in-python/
+        # Djikstra shortest path for BLUE player
         def dijkstra_blue(size, start, board):
             start_vertex = start
             edges = {}
@@ -582,11 +597,10 @@ class Player:
                             D[neighbour] = new_cost
             return D
 
+        # Calculates the heuristic score
         def heuristic(last_player):
 
             score = 0
-            
-            # time.sleep(0.2271)
 
             # Opening
             if self.turn_number < self.board_size:
@@ -594,12 +608,7 @@ class Player:
                 centred_score = centred()
                 red_score = search_dijkstra_red(self.board_size, self.board)
                 blue_score = search_dijkstra_blue(self.board_size, self.board)
-
                 dijkstra_score = red_score - blue_score
-
-                # print(f"bridging score: {bridging_score}")
-                # print(f"centred score: {centred_score}")
-                # print(f"dijkstra_score: {dijkstra_score}")
 
                 score += 20 * dijkstra_score + 2 * bridging_score + 1 * centred_score
 
@@ -607,26 +616,14 @@ class Player:
             else:
                 red_score = search_dijkstra_red(self.board_size, self.board)
                 blue_score = search_dijkstra_blue(self.board_size, self.board)
-                
-                # print(f"red_score: {red_score}")
-                # print(f"blue_score: {blue_score}")
-                # print(f"dijkstra score: {red_score - blue_score}")
-                
                 dijkstra_score = red_score - blue_score
-
                 bridging_score = bridging_factor(last_player)
-
-                # print(f"bridging score: {bridging_score}")
-                # print(f"dijkstra score: {dijkstra_score}")
                 
                 score = 25 * dijkstra_score + bridging_score
-                
-                # print(f"bridging_score: {bridging_score}")
-                # print(f"dijkstra score: {red_score - blue_score}")
-                # print("---------------------")
-
+            
             return score
         
+        # Returns the minimax value utilising alpha-beta pruning technique
         def alphaBetaMinimax(depth, last_player, last_x, last_y, isMaxPlayer, alpha, beta):
 
             self.iterations += 1
@@ -693,11 +690,8 @@ class Player:
                             alpha = max(alpha, bestScore)
 
                             if beta <= alpha:
-                                # print("*********** PRUNED ********** inside maximising") # -------------- TEST ---------------
                                 breakOutOfNestedLoop = True
-                                break
-
-                            
+                                break 
 
                     if breakOutOfNestedLoop:
                         break
@@ -730,12 +724,8 @@ class Player:
                             beta = min(beta, bestScore)
 
                             if beta <= alpha:
-                                # print("*********** PRUNED ********** inside minimising") # -------------- TEST ---------------
                                 breakOutOfNestedLoop = True
                                 break
-
-                            
-                            # print('score: ', score, "bestscore: ", bestScore)
                     
                     if breakOutOfNestedLoop:
                         break
@@ -803,9 +793,7 @@ class Player:
                         if game_end(self.colour, i, j) == self.colour:
                             return ("PLACE", i, j)
 
-                        self.board[i][j] = 0
-
-        # print(self.board[::-1])              
+                        self.board[i][j] = 0       
 
         # Decide whether to steal
         # As blue, if red plays on border, don't steal and then play in centre
@@ -928,5 +916,3 @@ class Player:
 
         self.turn_number += 1 # Increment turn count
         self.history[self.board.tobytes()] += 1 # Add board state to history
-
-        # print(self.board[::-1])
